@@ -36,8 +36,16 @@ export function cardFixtures(): string[] {
     .sort();
 }
 
+const cardCache = new Map<string, Uint8Array>();
+
+/** A fresh copy of a fixture card, safe to modify in a test. */
 export function loadCard(name: string): Uint8Array {
-  return new Uint8Array(gunzipSync(readFileSync(join(FIXTURES_DIR, `${name}.ps2.gz`))));
+  let bytes = cardCache.get(name);
+  if (!bytes) {
+    bytes = new Uint8Array(gunzipSync(readFileSync(join(FIXTURES_DIR, `${name}.ps2.gz`))));
+    cardCache.set(name, bytes);
+  }
+  return bytes.slice();
 }
 
 export function loadGolden(name: string): GoldenCard {

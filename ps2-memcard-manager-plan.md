@@ -290,6 +290,17 @@ Registradas conforme o princípio 5 (a referência vence o plano).
   - Entrada de diretório: o campo de nome no struct do mymc++ tem 448 bytes (0x40 até o fim); usar até o primeiro NUL, limitado a 32.
   - Frames de animação do `.ico`: o mymc++ lê `key_count − 1` keys. As fixtures foram geradas assim; **confirmar na fase 2** contra o ps2mc-browser.
   - Bug do mymc++: o `dir` quebra em cards com save de PS1. Nesses casos o `mymc_dir` do golden fica `null`; o JSON estruturado continua valendo.
+- **Fase 1 (2026-10-29):**
+  - **Detecção de ECC pelo tamanho é ambígua sozinha:** 8.650.752 (8 MB com ECC) também é múltiplo de 512. O leitor compara o tamanho com `clusters_per_card × 2 × 528` (com ECC) ou `× 512` (sem ECC); qualquer outro tamanho é recusado.
+  - Diretório raiz: o mymc++ sempre usa o cluster relativo 0; o leitor usa `rootdir_cluster` do superbloco (0 em todos os cards conhecidos) e lê o `length` da raiz na entrada `.`.
+  - Arquivo vazio tem cluster inicial `0xFFFFFFFF` e nenhuma cadeia.
+  - Proteção tem quatro estados, derivados de `mode & (0x0008 | 0x0002)`: `0` = protegido contra apagar, só write = sem proteção, só protected = protegido contra cópia e apagar, ambos = protegido contra cópia. A API expõe `protection: 'none' | 'copy' | 'delete' | 'copy-and-delete'` em vez de um booleano.
+  - Tamanho do save como o PS2 mostra (`dir_size` do mymc): entradas do diretório arredondadas para clusters, mais cada arquivo arredondado para clusters. É o `sizeOnCard`.
+  - Saves de PS1 têm título: o arquivo com o mesmo nome do diretório começa com um cabeçalho de 128 bytes (magic `SC`, título Shift-JIS de 64 bytes no offset 4). O mymc++ tem um bug nessa leitura (compara `str` com `bytes`) e o `dir` quebra; o nosso leitor implementa.
+  - Datas: o mymc++ grava em horário do Japão (UTC+9), confirmado nas fixtures.
+  - Validação de ECC: páginas apagadas (dados e spare todos `0xFF`) não são verificadas. O relatório separa `failed` (todas as páginas com ECC errado) de `failedInUse` (só página 0, FAT indireta, FAT e clusters de dados alocados).
+  - **Card real (`Mcd001.ps2` do PCSX2):** a página 1 (segunda página do cluster do superbloco, fora do sistema de arquivos) tem 8 bytes de dados (`51a23f21 65151612`) e o resto `0xFF`, mas o ECC gravado é o de uma página toda em branco. Quem escreveu esses bytes não atualizou o ECC; origem desconhecida (BIOS ou PCSX2). Não afeta nenhum save, e o mymc++ nunca lê essa página. **Para a fase 5:** a reconstrução deve copiar a página 1 da origem como está (dados e spare), para não perder esses bytes.
+  - API implementada (difere um pouco da proposta): `openCard`, `MemoryCard.{superblock, layout, hasEcc, freeBytes, readDir, stat, readFile, listSaves, problems, checkEcc, clusterChain}`; `SaveSummary.{name, entry, kind, title{lines, display, raw}, iconSys, sizeOnCard, protection, hidden, readable, problem}`. `kind` inclui `'file'` para arquivos soltos na raiz. Cada `DirEntry` guarda os 512 bytes brutos para a reconstrução preservar campos não interpretados.
 - **Fixtures:** guardadas como `.ps2.gz` (gzip com mtime 0), mais um `.json` por card com o que o mymc++ vê: superbloco, espaço livre, árvore com `mode`, datas, `attr`, cluster inicial, cadeia de clusters (em faixas) e sha256 de cada arquivo. Total de cerca de 1,2 MB. O `*.ps2` está no `.gitignore` para nenhum card real ser commitado por engano.
 
 ## Referências
