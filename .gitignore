@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.venv/
+*.tsbuildinfo
+.DS_Store
+
+# Never commit real memory cards. Fixtures are stored gzipped (*.ps2.gz).
+*.ps2
+*.mcd
+
+# Screenshot used as a UI reference; it's not ours to publish.
+*.webp

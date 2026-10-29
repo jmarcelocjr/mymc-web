@@ -1,0 +1,426 @@
+{
+  "file_size": 8650752,
+  "has_ecc": true,
+  "superblock": {
+    "page_len": 512,
+    "pages_per_cluster": 2,
+    "pages_per_erase_block": 16,
+    "clusters_per_card": 8192,
+    "alloc_offset": 41,
+    "alloc_end": 8135,
+    "rootdir_cluster": 0,
+    "backup_block1": 1023,
+    "backup_block2": 1022,
+    "ifc_list": [
+      8
+    ]
+  },
+  "free_bytes": 8221696,
+  "root": [
+    {
+      "name": "BASLUS-00008GROWER",
+      "mode": 33831,
+      "length": 5,
+      "created": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 1,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 6,
+          "attr": 0,
+          "sha256": "539b6fceab8c910d0420d1317adc6ab98b24422827f7bcf7ae6afe3a0b89e998",
+          "chain": [
+            [
+              6,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "g.bin",
+          "mode": 33815,
+          "length": 40000,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 3,
+          "attr": 0,
+          "sha256": "e0263fe4d8b9648c11adb82b64401ee945a0b1da8e08dd90fe161d1b28f90570",
+          "chain": [
+            [
+              3,
+              1
+            ],
+            [
+              9,
+              4
+            ],
+            [
+              4,
+              1
+            ],
+            [
+              7,
+              2
+            ],
+            [
+              13,
+              1
+            ],
+            [
+              69,
+              31
+            ]
+          ]
+        },
+        {
+          "name": "icon.ico",
+          "mode": 33815,
+          "length": 4752,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 101,
+          "attr": 0,
+          "sha256": "fa3e7ea6701784f702a7006e4de18bdac57ac1792ccb986aa42551a51c0de402",
+          "chain": [
+            [
+              101,
+              5
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          1,
+          1
+        ],
+        [
+          5,
+          1
+        ],
+        [
+          100,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BASLUS-00001SYNTH",
+      "mode": 33831,
+      "length": 5,
+      "created": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 14,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 16,
+          "attr": 0,
+          "sha256": "c97a4f3aba65ff83751d66907c16dbe39f4a64406d02f1e6612c2040654cbd31",
+          "chain": [
+            [
+              16,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "BASLUS-00001SYNTH",
+          "mode": 33815,
+          "length": 5000,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 17,
+          "attr": 0,
+          "sha256": "0e02962e029af132ab8b6e78c5a348a9ded342bf91aee89de53b2124d374c04b",
+          "chain": [
+            [
+              17,
+              5
+            ]
+          ]
+        },
+        {
+          "name": "icon.ico",
+          "mode": 33815,
+          "length": 33448,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 23,
+          "attr": 0,
+          "sha256": "495a61c66083ce6066c28b5d4f7451c9bbc6f2f34cee40c59fb357fede004373",
+          "chain": [
+            [
+              23,
+              33
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          14,
+          2
+        ],
+        [
+          22,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BASLUS-00007SMALLC",
+      "mode": 33831,
+      "length": 5,
+      "created": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        47,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 56,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 59,
+          "attr": 0,
+          "sha256": "3457c4fdf66dfd58466de8d4f4851e14d62d82db43e21f5416f430c1f6b179b9",
+          "chain": [
+            [
+              59,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "c.bin",
+          "mode": 33815,
+          "length": 3000,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 60,
+          "attr": 0,
+          "sha256": "1737fbc63befed8bb9aa345672cd8d01729b7cf8accbf56e7df71bdcb1cb4935",
+          "chain": [
+            [
+              60,
+              3
+            ]
+          ]
+        },
+        {
+          "name": "icon.ico",
+          "mode": 33815,
+          "length": 4752,
+          "created": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            47,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 64,
+          "attr": 0,
+          "sha256": "e608bdc51c6d3fb3284a03b9333c06b1b3c0255d0850ceec49a2bb4e06f04807",
+          "chain": [
+            [
+              64,
+              5
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          56,
+          1
+        ],
+        [
+          58,
+          1
+        ],
+        [
+          63,
+          1
+        ]
+      ]
+    }
+  ],
+  "mymc_dir": "BASLUS-00008GROWER               Fragmented\n  49KB Not Protected             \n\nBASLUS-00001SYNTH                Synthetic Save\n  42KB Not Protected             Slot 1\n\nBASLUS-00007SMALLC               Small \n  12KB Not Protected             C\n\n8,029 KB Free\n",
+  "mymc_df": "/Users/marcelocerqueira/development/personal/mymc-web/test/fixtures/fragmented-8mb.ps2: 8221696 bytes free.\n"
+}

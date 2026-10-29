@@ -1,0 +1,22 @@
+{
+  "file_size": 8650752,
+  "has_ecc": true,
+  "superblock": {
+    "page_len": 512,
+    "pages_per_cluster": 2,
+    "pages_per_erase_block": 16,
+    "clusters_per_card": 8192,
+    "alloc_offset": 41,
+    "alloc_end": 8135,
+    "rootdir_cluster": 0,
+    "backup_block1": 1023,
+    "backup_block2": 1022,
+    "ifc_list": [
+      8
+    ]
+  },
+  "free_bytes": 8329216,
+  "root": [],
+  "mymc_dir": "8,134 KB Free\n",
+  "mymc_df": "/Users/marcelocerqueira/development/personal/mymc-web/test/fixtures/empty-8mb.ps2: 8329216 bytes free.\n"
+}

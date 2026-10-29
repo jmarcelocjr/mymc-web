@@ -1,0 +1,714 @@
+{
+  "file_size": 8650752,
+  "has_ecc": true,
+  "superblock": {
+    "page_len": 512,
+    "pages_per_cluster": 2,
+    "pages_per_erase_block": 16,
+    "clusters_per_card": 8192,
+    "alloc_offset": 41,
+    "alloc_end": 8135,
+    "rootdir_cluster": 0,
+    "backup_block1": 1023,
+    "backup_block2": 1022,
+    "ifc_list": [
+      8
+    ]
+  },
+  "free_bytes": 8151040,
+  "root": [
+    {
+      "name": "BASLUS-00001SYNTH",
+      "mode": 33831,
+      "length": 5,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 1,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 4,
+          "attr": 0,
+          "sha256": "c97a4f3aba65ff83751d66907c16dbe39f4a64406d02f1e6612c2040654cbd31",
+          "chain": [
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "BASLUS-00001SYNTH",
+          "mode": 33815,
+          "length": 5000,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 5,
+          "attr": 0,
+          "sha256": "0e02962e029af132ab8b6e78c5a348a9ded342bf91aee89de53b2124d374c04b",
+          "chain": [
+            [
+              5,
+              5
+            ]
+          ]
+        },
+        {
+          "name": "icon.ico",
+          "mode": 33815,
+          "length": 33448,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 11,
+          "attr": 0,
+          "sha256": "495a61c66083ce6066c28b5d4f7451c9bbc6f2f34cee40c59fb357fede004373",
+          "chain": [
+            [
+              11,
+              33
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          1,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          10,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BISLPS-00002JPTEST",
+      "mode": 33839,
+      "length": 6,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 44,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 46,
+          "attr": 0,
+          "sha256": "dc7cfe0fb7bca55cde9c20f332058981d8d9423d3d2daaf52e656e7b1c2fbff1",
+          "chain": [
+            [
+              46,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "data0",
+          "mode": 33815,
+          "length": 1024,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 47,
+          "attr": 0,
+          "sha256": "3c00078a3f141d9195e7aa4c40f48d971e68e9af7d637e5086b34f4cde1489a8",
+          "chain": [
+            [
+              47,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "data1",
+          "mode": 33815,
+          "length": 0,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 4294967295,
+          "attr": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "jp.ico",
+          "mode": 33815,
+          "length": 4752,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 49,
+          "attr": 0,
+          "sha256": "c1128456fe8426fd008e1b5dcb211a45964da4623360162e1853bcb4d7dccf10",
+          "chain": [
+            [
+              49,
+              5
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          44,
+          2
+        ],
+        [
+          48,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BASLES-00003ICONS",
+      "mode": 33831,
+      "length": 7,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 54,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 57,
+          "attr": 0,
+          "sha256": "45c439f1de3d1f988aac12e2873cb6e8aad71cb643cf98257929c0c268877d4c",
+          "chain": [
+            [
+              57,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "SAVE.DAT",
+          "mode": 33815,
+          "length": 20000,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 58,
+          "attr": 0,
+          "sha256": "f3381c12342d32d24dc3ecfc37388b53e96aabbab10bd31cd866758737d16f48",
+          "chain": [
+            [
+              58,
+              20
+            ]
+          ]
+        },
+        {
+          "name": "copy.ico",
+          "mode": 33815,
+          "length": 4752,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 79,
+          "attr": 0,
+          "sha256": "1009139ef9705cf2eac0f3f88be82f804b2569a178af45294b06b8f4b432d9c8",
+          "chain": [
+            [
+              79,
+              5
+            ]
+          ]
+        },
+        {
+          "name": "del.ico",
+          "mode": 33815,
+          "length": 33448,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 84,
+          "attr": 0,
+          "sha256": "25b60271753db22f235308b2586b4ee7f04ce9c70d4edb01b3fa0750017474b7",
+          "chain": [
+            [
+              84,
+              33
+            ]
+          ]
+        },
+        {
+          "name": "list.ico",
+          "mode": 33815,
+          "length": 33448,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 118,
+          "attr": 0,
+          "sha256": "54706934523474e970bcbe2ccb96cf7dd56ac2806dca933db88fed191e37bb6f",
+          "chain": [
+            [
+              118,
+              33
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          54,
+          1
+        ],
+        [
+          56,
+          1
+        ],
+        [
+          78,
+          1
+        ],
+        [
+          117,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BESLES-00004PS1",
+      "mode": 37927,
+      "length": 3,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 453,
+      "attr": 0,
+      "children": [
+        {
+          "name": "BESLES-00004PS1",
+          "mode": 33815,
+          "length": 8192,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 456,
+          "attr": 0,
+          "sha256": "94207d4db243264ca5ea83f0f82ec21709517db0666e66280def9c916e9f642c",
+          "chain": [
+            [
+              456,
+              8
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          453,
+          1
+        ],
+        [
+          455,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "BASLUS-00009HIDDEN",
+      "mode": 42023,
+      "length": 5,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 464,
+      "attr": 0,
+      "children": [
+        {
+          "name": "icon.sys",
+          "mode": 33815,
+          "length": 964,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 466,
+          "attr": 0,
+          "sha256": "925af67386848af90652e6e4257df65ff723181aa2a71647c5d7439bf867be72",
+          "chain": [
+            [
+              466,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "h.bin",
+          "mode": 33815,
+          "length": 100,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 467,
+          "attr": 0,
+          "sha256": "ba9003f8b02866a8c213d9c514168e9040678feb3c410a19c2e931978daab6a7",
+          "chain": [
+            [
+              467,
+              1
+            ]
+          ]
+        },
+        {
+          "name": "icon.ico",
+          "mode": 33815,
+          "length": 4752,
+          "created": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "modified": [
+            46,
+            3,
+            0,
+            30,
+            10,
+            2026
+          ],
+          "cluster": 469,
+          "attr": 0,
+          "sha256": "23749cf31f4fdf571db279c912e9ba2ebe258235f18837f8b55adf4d0abc5017",
+          "chain": [
+            [
+              469,
+              5
+            ]
+          ]
+        }
+      ],
+      "chain": [
+        [
+          464,
+          2
+        ],
+        [
+          468,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "ROOTFILE.BIN",
+      "mode": 33815,
+      "length": 2048,
+      "created": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "modified": [
+        46,
+        3,
+        0,
+        30,
+        10,
+        2026
+      ],
+      "cluster": 475,
+      "attr": 0,
+      "sha256": "72b426c812f09b702dd1fb816ea59b16aeff42a0fa7b787c70de1dce76d5d0b8",
+      "chain": [
+        [
+          475,
+          2
+        ]
+      ]
+    }
+  ],
+  "mymc_dir": null,
+  "mymc_df": "/Users/marcelocerqueira/development/personal/mymc-web/test/fixtures/multi-8mb.ps2: 8151040 bytes free.\n"
+}
