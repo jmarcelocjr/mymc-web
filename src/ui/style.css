@@ -268,6 +268,21 @@ select {
   overflow-wrap: anywhere;
 }
 
+.icon-states div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.icon-states .state {
+  width: 3.5em;
+  color: var(--muted);
+}
+
+.icon-states .link-button {
+  padding: 0;
+}
+
 .mono {
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }

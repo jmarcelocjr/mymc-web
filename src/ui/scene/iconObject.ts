@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { IconModel, IconSys, SaveKind } from '../../core';
+import { ShapeBlender, animationFrame, type IconModel, type IconSys, type SaveKind } from '../../core';
 
 // Icons are modeled with -y as "up" and the camera looking down +z.
 // Rotating 180° around x, (x, y, z) -> (x, -y, -z), gives three.js's y-up
@@ -15,14 +15,12 @@ function toWorld(src: Float32Array): Float32Array {
 }
 
 const vertexShader = /* glsl */ `
-  attribute vec3 nextPosition;
   attribute vec4 vertexColor;
-  uniform float tween;
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vColor;
   void main() {
-    vec3 p = mix(position, nextPosition, tween);
+    vec3 p = position;
     vUv = uv;
     vNormal = normalize(mat3(modelMatrix) * normal);
     vColor = vertexColor.rgb;
@@ -84,29 +82,36 @@ function lightingFrom(sys: IconSys | undefined) {
   };
 }
 
-/** A save's 3D icon. `setFrame` picks the shape pair and blend for the animation. */
+/** A save's 3D icon. `animate` morphs it between its shapes. */
 export class IconObject {
   readonly object: THREE.Mesh;
   readonly shapeCount: number;
   readonly model: IconModel;
   private readonly geometry: THREE.BufferGeometry;
   private readonly material: THREE.ShaderMaterial;
-  private readonly shapes: THREE.BufferAttribute[];
+  /** Each shape's vertex positions, already flipped to three.js axes. */
+  private readonly shapes: Float32Array[];
+  private readonly position: THREE.BufferAttribute;
+  private readonly blender: ShapeBlender;
+  private readonly lastWeights: Float32Array;
   private readonly texture?: THREE.DataTexture;
 
   constructor(model: IconModel, sys: IconSys | undefined) {
     this.model = model;
     this.shapeCount = model.shapes.length;
     this.geometry = new THREE.BufferGeometry();
-    this.shapes = model.shapes.map((s) => new THREE.BufferAttribute(toWorld(s), 3));
-    this.geometry.setAttribute('position', this.shapes[0]!);
-    this.geometry.setAttribute('nextPosition', this.shapes[0]!);
+    this.shapes = model.shapes.map(toWorld);
+    this.position = new THREE.BufferAttribute(this.shapes[0]!.slice(), 3);
+    this.position.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute('position', this.position);
+    this.blender = new ShapeBlender(model.animation, this.shapeCount);
+    this.lastWeights = new Float32Array(this.shapeCount).fill(Number.NaN);
     this.geometry.setAttribute('normal', new THREE.BufferAttribute(toWorld(model.normals), 3));
     this.geometry.setAttribute('uv', new THREE.BufferAttribute(model.uvs, 2));
     this.geometry.setAttribute('vertexColor', new THREE.BufferAttribute(model.colors, 4, true));
     // Bounds over all shapes, so the icon never pokes outside its cell mid-animation.
     const box = new THREE.Box3();
-    for (const s of this.shapes) box.union(new THREE.Box3().setFromBufferAttribute(s));
+    for (const s of this.shapes) box.union(new THREE.Box3().setFromArray(s));
     this.geometry.boundingBox = box;
     this.geometry.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
 
@@ -129,7 +134,6 @@ export class IconObject {
         ambient: { value: new THREE.Vector3(...(light.ambient as [number, number, number])) },
         lightDir: { value: light.dirs.map((d) => v3(d).normalize()) },
         lightColor: { value: light.colors.map((c) => new THREE.Vector3(...(c as [number, number, number]))) },
-        tween: { value: 0 },
         highlight: { value: 0 },
         opacity: { value: 1 },
       },
@@ -142,10 +146,29 @@ export class IconObject {
     return this.geometry.boundingBox!;
   }
 
-  setFrame(shape: number, next: number, tween: number): void {
-    this.geometry.setAttribute('position', this.shapes[shape % this.shapeCount]!);
-    this.geometry.setAttribute('nextPosition', this.shapes[next % this.shapeCount]!);
-    this.material.uniforms.tween!.value = tween;
+  /** Whether the icon has more than one shape to morph between. */
+  get animated(): boolean {
+    return this.blender.animated;
+  }
+
+  /** Show the icon as it is `seconds` into its animation loop. */
+  animate(seconds: number): void {
+    const w = this.blender.weights(animationFrame(this.model.animation, seconds));
+    let changed = false;
+    for (let i = 0; i < w.length; i++) {
+      if (Math.abs(w[i]! - this.lastWeights[i]!) > 1e-4 || Number.isNaN(this.lastWeights[i]!)) changed = true;
+    }
+    if (!changed) return;
+    this.lastWeights.set(w);
+    const out = this.position.array as Float32Array;
+    out.fill(0);
+    for (let s = 0; s < this.shapeCount; s++) {
+      const weight = w[s]!;
+      if (weight === 0) continue;
+      const src = this.shapes[s]!;
+      for (let i = 0; i < out.length; i++) out[i]! += src[i]! * weight;
+    }
+    this.position.needsUpdate = true;
   }
 
   setHighlight(amount: number): void {
@@ -179,6 +202,8 @@ export class PlaceholderObject {
   private readonly material: THREE.MeshBasicMaterial;
   private readonly geometry: THREE.BoxGeometry;
 
+  readonly animated = false;
+
   constructor(kind: SaveKind) {
     const { label, color } = PLACEHOLDER_STYLE[kind];
     const canvas = document.createElement('canvas');
@@ -199,6 +224,10 @@ export class PlaceholderObject {
     this.material = new THREE.MeshBasicMaterial({ map: this.texture, transparent: true });
     this.geometry = new THREE.BoxGeometry(2.4, 2.4, 0.3);
     this.object = new THREE.Mesh(this.geometry, this.material);
+  }
+
+  animate(): void {
+    // Flat tiles don't animate.
   }
 
   setHighlight(amount: number): void {

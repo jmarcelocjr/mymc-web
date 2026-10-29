@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MemoryCard, SaveSummary } from '../core';
-import { IconGrid } from './IconGrid';
+import { IconGrid, type GridApi } from './IconGrid';
 import { SaveDetails } from './SaveDetails';
 import { displayTitle, formatKb, todToDate } from './format';
 
@@ -29,6 +29,7 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [columns, setColumns] = useState(5);
+  const grid = useRef<GridApi | null>(null);
 
   const all = useMemo(() => card.listSaves(), [card]);
   const problems = useMemo(() => card.problems(), [card]);
@@ -96,6 +97,7 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
           setDetailsOpen(true);
         }}
         onColumns={setColumns}
+        apiRef={grid}
       />
 
       <header className="hud-top">
@@ -163,7 +165,19 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
         </div>
       </footer>
 
-      {detailsOpen && current && <SaveDetails key={current.name} card={card} save={current} onClose={() => setDetailsOpen(false)} />}
+      {detailsOpen && current && (
+        <SaveDetails
+          key={current.name}
+          card={card}
+          save={current}
+          onClose={() => setDetailsOpen(false)}
+          onPreview={(kind) => {
+            // Close the panel so the icon is in view, then play its animation.
+            setDetailsOpen(false);
+            void grid.current?.playAction(current.name, kind);
+          }}
+        />
+      )}
     </main>
   );
 }

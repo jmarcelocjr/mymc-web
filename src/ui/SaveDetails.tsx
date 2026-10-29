@@ -7,9 +7,11 @@ interface Props {
   card: MemoryCard;
   save: SaveSummary;
   onClose: () => void;
+  /** Show the save's copy or delete animation on the grid. */
+  onPreview?: (kind: 'copy' | 'delete') => void;
 }
 
-export function SaveDetails({ card, save, onClose }: Props) {
+export function SaveDetails({ card, save, onClose, onPreview }: Props) {
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [line1, line2] = displayTitle(save);
   const isDirectory = isDir(save.entry);
@@ -68,6 +70,23 @@ export function SaveDetails({ card, save, onClose }: Props) {
           <>
             <dt>Hidden</dt>
             <dd>Yes</dd>
+          </>
+        )}
+        {save.iconSys && (
+          <>
+            <dt>Icons</dt>
+            <dd className="icon-states">
+              {(['normal', 'copy', 'delete'] as const).map((kind) => (
+                <div key={kind}>
+                  <span className="state">{kind}</span> <span className="mono">{save.iconSys!.icons[kind]}</span>
+                  {kind !== 'normal' && onPreview && (
+                    <button type="button" className="link-button" onClick={() => onPreview(kind)}>
+                      ▶ Preview
+                    </button>
+                  )}
+                </div>
+              ))}
+            </dd>
           </>
         )}
         {save.iconSysError && (

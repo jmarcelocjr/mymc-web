@@ -23,3 +23,4 @@ export {
   type IconKey,
   type IconModel,
 } from './icon';
+export { ICON_FPS, ShapeBlender, animationFrame } from './iconAnim';

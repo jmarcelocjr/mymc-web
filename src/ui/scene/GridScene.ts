@@ -19,11 +19,68 @@ const MAX_SPAN = CELL_X * 0.85;
 const ICON_CENTER = 2.2;
 /** Depth of the glow behind the selected icon. */
 const GLOW_Z = -2;
+/** How fast the selected icon turns, in radians per second (a turn every ~6 s). */
+const SPIN_SPEED = 1.05;
+/** Length of the copy and delete animations, in seconds. */
+const ACTION_SECONDS = { copy: 1.6, delete: 1.8 } as const;
 
 export interface GridItem {
   key: string;
   visual: GridVisual;
 }
+
+export type IconAction = keyof typeof ACTION_SECONDS;
+
+interface RunningAction {
+  kind: IconAction;
+  start: number;
+  /** Bring the normal icon back afterwards (false when the save is going away). */
+  restore: boolean;
+  done: () => void;
+}
+
+interface Entry {
+  item: GridItem;
+  /** Sits at the cell position. */
+  holder: THREE.Group;
+  /** At the icon's center: spins and scales the icon in place. */
+  pivot: THREE.Group;
+  /** What's on screen: the normal icon, or the copy/delete icon during an action. */
+  shown: GridVisual;
+  hit: THREE.Mesh;
+  centerY: number;
+  size: number;
+  /** Current turn around the vertical axis, in radians. */
+  spin: number;
+  /** Extra fade from an action, multiplied into the edge fade. */
+  actionOpacity: number;
+  action?: RunningAction | undefined;
+  /** Deleted: stays hidden until the grid gets its new list of saves. */
+  gone: boolean;
+  /** Time the current animation loop started, so actions play from their first frame. */
+  animStart: number;
+}
+
+/** Scale a visual to the common icon size and center it on its pivot. Returns its on-screen size. */
+function fitVisual(visual: GridVisual): number {
+  const obj = visual.object;
+  // Use the model's own bounds, not setFromObject: a reused visual still carries
+  // the scale, offset and parent position from the previous layout.
+  const geometry = obj.geometry;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const box = geometry.boundingBox!;
+  const size = box.getSize(new THREE.Vector3());
+  // Same on-screen size for every icon, whatever units the game modeled it in.
+  const target = visual instanceof PlaceholderObject ? TILE_SIZE : ICON_SIZE;
+  const scale = Math.min(target / Math.max(size.x, size.y, 0.001), MAX_SPAN / Math.max(size.x, size.z, 0.001));
+  obj.scale.setScalar(scale);
+  const center = box.getCenter(new THREE.Vector3());
+  obj.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+  return Math.max(size.x, size.y) * scale;
+}
+
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const clamp01 = (t: number) => Math.min(Math.max(t, 0), 1);
 
 type Rgb = [number, number, number];
 
@@ -81,7 +138,7 @@ export class GridScene {
   private readonly hitMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   private readonly hitGeometry = new THREE.PlaneGeometry(CELL_X * 0.95, CELL_Y * 0.95);
   private readonly raycaster = new THREE.Raycaster();
-  private items: { item: GridItem; holder: THREE.Group; hit: THREE.Mesh; centerY: number; size: number }[] = [];
+  private items: Entry[] = [];
   private selected = -1;
   private columns = 5;
   private cameraY = 0;
@@ -91,6 +148,8 @@ export class GridScene {
   getInsets?: () => { top: number; bottom: number };
   private frame = 0;
   private glowSize = 5;
+  private lastTime = 0;
+  private readonly reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   private readonly start = performance.now();
   private readonly resizeObserver: ResizeObserver;
 
@@ -128,37 +187,59 @@ export class GridScene {
   }
 
   setItems(items: GridItem[]): void {
-    for (const { holder, hit } of this.items) {
-      this.scene.remove(holder);
-      this.scene.remove(hit);
+    const time = this.now();
+    const previous = new Map(this.items.map((e) => [e.item.key, e]));
+    for (const e of this.items) {
+      this.finishAction(e);
+      this.scene.remove(e.holder, e.hit);
     }
     this.items = items.map((item) => {
       const holder = new THREE.Group();
-      const obj = item.visual.object;
-      // Use the model's own bounds, not setFromObject: a reused visual still carries
-      // the scale, offset and parent position from the previous layout.
-      const geometry = obj.geometry;
-      if (!geometry.boundingBox) geometry.computeBoundingBox();
-      const box = geometry.boundingBox!;
-      const size = box.getSize(new THREE.Vector3());
-      // Same on-screen size for every icon, whatever units the game modeled it in.
-      const target = item.visual instanceof PlaceholderObject ? TILE_SIZE : ICON_SIZE;
-      const scale = Math.min(
-        target / Math.max(size.x, size.y, 0.001),
-        MAX_SPAN / Math.max(size.x, size.z, 0.001),
-      );
-      obj.scale.setScalar(scale);
-      // Center the icon in its cell, at the same height for every icon.
-      const center = box.getCenter(new THREE.Vector3());
-      obj.position.set(-center.x * scale, ICON_CENTER - center.y * scale, -center.z * scale);
-      holder.add(obj);
+      const pivot = new THREE.Group();
+      pivot.position.y = ICON_CENTER;
+      const size = fitVisual(item.visual);
+      pivot.add(item.visual.object);
+      holder.add(pivot);
       const hit = new THREE.Mesh(this.hitGeometry, this.hitMaterial);
       this.scene.add(holder, hit);
-      return { item, holder, hit, centerY: ICON_CENTER, size: Math.max(size.x, size.y) * scale };
+      // Keep each icon's turn and animation phase across re-sorts.
+      const old = previous.get(item.key);
+      const spin = old?.spin ?? 0;
+      pivot.rotation.y = spin;
+      return {
+        item,
+        holder,
+        pivot,
+        shown: item.visual,
+        hit,
+        centerY: ICON_CENTER,
+        size,
+        spin,
+        actionOpacity: 1,
+        gone: false,
+        animStart: old?.animStart ?? time,
+      };
     });
     this.layout();
     this.selected = Math.min(this.selected, items.length - 1);
     this.updateSelection();
+  }
+
+  /**
+   * Play the save's copy or delete animation, showing `visual` (its copy or
+   * delete icon) meanwhile. Resolves when it's over. With `restore` false the
+   * icon stays hidden, for a save that is about to be removed from the grid.
+   */
+  playAction(index: number, kind: IconAction, visual: GridVisual, restore = true): Promise<void> {
+    const e = this.items[index];
+    if (!e) return Promise.resolve();
+    this.finishAction(e);
+    e.gone = false;
+    if (visual !== e.shown) this.show(e, visual);
+    return new Promise((resolve) => {
+      e.animStart = this.now();
+      e.action = { kind, start: this.now(), restore, done: resolve };
+    });
   }
 
   setSelected(index: number): void {
@@ -176,7 +257,7 @@ export class GridScene {
 
   /** The icon object at an index, for animation. */
   visualAt(index: number): GridVisual | undefined {
-    return this.items[index]?.item.visual;
+    return this.items[index]?.shown;
   }
 
   holderAt(index: number): THREE.Group | undefined {
@@ -185,6 +266,7 @@ export class GridScene {
 
   dispose(): void {
     cancelAnimationFrame(this.frame);
+    for (const e of this.items) e.action?.done();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('click', this.handleClick);
     this.canvas.removeEventListener('dblclick', this.handleDoubleClick);
@@ -211,7 +293,7 @@ export class GridScene {
   }
 
   private updateSelection(): void {
-    this.items.forEach(({ item }, i) => item.visual.setHighlight(i === this.selected ? 0.25 : 0));
+    this.items.forEach((e, i) => e.shown.setHighlight(i === this.selected ? 0.25 : 0));
     const sel = this.items[this.selected];
     this.glow.visible = !!sel;
     if (sel) {
@@ -270,15 +352,10 @@ export class GridScene {
     const bandTop = screenTop - top * unitsPerPx; // world y of the header's bottom edge
     const bandBottom = screenTop - (px - this.insets().bottom) * unitsPerPx;
     const fade = 1.0; // world units over which an icon fades
-    this.items.forEach(({ item, holder, centerY }) => {
-      const y = holder.position.y + centerY;
-      const above = y - bandTop;
-      const below = bandBottom - y;
-      const opacity = Math.min(1, Math.max(0, 1 - Math.max(above, below) / fade));
-      item.visual.setOpacity(opacity);
-    });
+    const edge = (y: number) => clamp01(1 - Math.max(y - bandTop, bandBottom - y) / fade);
+    this.items.forEach((e) => e.shown.setOpacity(edge(e.holder.position.y + e.centerY) * e.actionOpacity));
     const sel = this.items[this.selected];
-    if (sel) (this.glow.material as THREE.SpriteMaterial).opacity = Math.min(1, Math.max(0, 1 - Math.max(this.glow.position.y - bandTop, bandBottom - this.glow.position.y) / fade));
+    if (sel) (this.glow.material as THREE.SpriteMaterial).opacity = edge(sel.holder.position.y + sel.centerY) * sel.actionOpacity;
   }
 
   private insets(): { top: number; bottom: number } {
@@ -310,7 +387,7 @@ export class GridScene {
 
   private render = (now: number): void => {
     this.frame = requestAnimationFrame(this.render);
-    const time = (now - this.start) / 1000;
+    const time = this.now(now);
 
     // Ease the background toward the selected save's colors.
     const arr = this.bgColors.array as Float32Array;
@@ -332,6 +409,9 @@ export class GridScene {
     this.placeGlow();
     this.fadeEdges(h, px, top);
 
+    const dt = Math.min(time - this.lastTime, 0.1);
+    this.lastTime = time;
+    this.animateIcons(time, dt);
     this.onFrame?.(time, this.selected);
 
     this.renderer.clear();
@@ -339,6 +419,85 @@ export class GridScene {
     this.renderer.clearDepth();
     this.renderer.render(this.scene, this.camera);
   };
+
+  private now(at = performance.now()): number {
+    return (at - this.start) / 1000;
+  }
+
+  /** Swap what an entry shows (its normal icon or its copy/delete icon). */
+  private show(e: Entry, visual: GridVisual): void {
+    e.pivot.remove(e.shown.object);
+    e.size = fitVisual(visual);
+    e.pivot.add(visual.object);
+    e.shown = visual;
+    visual.setHighlight(this.items[this.selected] === e ? 0.25 : 0);
+    if (this.items[this.selected] === e) this.glowSize = Math.min(Math.max(e.size * 1.4, 3.5), 6);
+  }
+
+  private finishAction(e: Entry): void {
+    const action = e.action;
+    if (!action) return;
+    e.action = undefined;
+    if (action.restore) {
+      // Back to the normal icon; animateIcons eases it back to full size.
+      if (e.shown !== e.item.visual) this.show(e, e.item.visual);
+      e.pivot.position.y = ICON_CENTER;
+      e.centerY = ICON_CENTER;
+    } else {
+      e.gone = true;
+      e.actionOpacity = 0;
+    }
+    action.done();
+  }
+
+  /** Idle animation for every visible icon, the selected icon's turn, and copy/delete actions. */
+  private animateIcons(time: number, dt: number): void {
+    this.items.forEach((e, i) => {
+      const visible = e.actionOpacity > 0 && e.shown.object.visible;
+      if (e.action) this.stepAction(e, time);
+      else if (!e.gone) {
+        // The selected icon turns; the others ease back to face the front.
+        if (i === this.selected && !this.reducedMotion) e.spin += dt * SPIN_SPEED;
+        else {
+          const rest = Math.round(e.spin / (2 * Math.PI)) * 2 * Math.PI;
+          e.spin += (rest - e.spin) * Math.min(1, dt * 6);
+        }
+        e.pivot.rotation.y = e.spin;
+        // Grow back in after a previewed delete.
+        const k = Math.min(1, dt * 8);
+        e.pivot.scale.setScalar(e.pivot.scale.x + (1 - e.pivot.scale.x) * k);
+        e.actionOpacity += (1 - e.actionOpacity) * k;
+      }
+      if (visible && (!this.reducedMotion || e.action)) e.shown.animate(time - e.animStart);
+    });
+  }
+
+  /**
+   * Copy: the icon hops up and turns once. Delete: it lifts, spins faster and
+   * shrinks away. Both play the icon's own animation from its first frame.
+   */
+  private stepAction(e: Entry, time: number): void {
+    const action = e.action!;
+    const t = clamp01((time - action.start) / ACTION_SECONDS[action.kind]);
+    if (action.kind === 'copy') {
+      const hop = Math.sin(t * Math.PI);
+      e.pivot.position.y = ICON_CENTER + hop * 1.2;
+      e.pivot.rotation.y = e.spin + easeInOut(t) * 2 * Math.PI;
+      e.pivot.scale.setScalar(1 + hop * 0.12);
+    } else {
+      const lift = easeInOut(clamp01(t / 0.35));
+      const vanish = easeInOut(clamp01((t - 0.35) / 0.65));
+      e.pivot.position.y = ICON_CENTER + lift * 0.8 - vanish * 2.5;
+      e.pivot.rotation.y = e.spin + (t * t) * 4 * Math.PI;
+      e.pivot.scale.setScalar(Math.max(1 - vanish, 0.001));
+      e.actionOpacity = 1 - vanish;
+    }
+    e.centerY = e.pivot.position.y;
+    if (t >= 1) {
+      e.spin = e.pivot.rotation.y % (2 * Math.PI);
+      this.finishAction(e);
+    }
+  }
 
   private pick(event: MouseEvent): number {
     const rect = this.canvas.getBoundingClientRect();

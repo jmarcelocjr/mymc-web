@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { openCard, parseIcon, type MemoryCard } from '../src/core';
+import { ShapeBlender, openCard, parseIcon, type MemoryCard } from '../src/core';
 import { REAL_CARD_PATH, loadRealCard, type GoldenCard } from './helpers/fixtures';
 import { describeTree } from './helpers/tree';
 
@@ -63,6 +63,14 @@ describe.skipIf(!REAL_CARD_PATH)('real card', () => {
             `${icon.texture ? 'textured' : 'no texture'}${icon.warning ? `, warning: ${icon.warning}` : ''}`,
         );
         expect(icon.vertexCount).toBeGreaterThan(0);
+        // The animation blends shapes with weights that always add up to 1.
+        const blender = new ShapeBlender(icon.animation, icon.shapes.length);
+        const length = Math.max(icon.animation?.frameLength ?? 1, 1);
+        for (let f = 0; f < length; f += 0.5) {
+          const w = blender.weights(f);
+          expect(w.every(Number.isFinite)).toBe(true);
+          expect(w.reduce((a, v) => a + v, 0)).toBeCloseTo(1, 4);
+        }
       }
     }
   });
