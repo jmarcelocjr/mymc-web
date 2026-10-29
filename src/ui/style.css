@@ -486,3 +486,142 @@ select {
     bottom: 140px;
   }
 }
+
+/* ---------------------------------------------------------------- editing */
+
+.changes {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(20, 30, 50, 0.85);
+  border: 1px solid var(--accent);
+  font-size: 0.9rem;
+}
+
+.changes-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.changes button,
+.dialog-actions button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.changes button:hover,
+.dialog-actions button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+button.primary-action {
+  background: #2f5bd3;
+  border-color: #6f93ff;
+}
+
+button.primary-action:hover {
+  background: #3a68e6;
+}
+
+button.danger-action {
+  background: #8a2a2a;
+  border-color: #ff8f8f;
+}
+
+button.danger-action:hover:not(:disabled) {
+  background: #a33434;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 30;
+}
+
+.dialog {
+  width: min(480px, 100%);
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  padding: 20px;
+  border-radius: 10px;
+  background: #1c1f27;
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dialog h2 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.dialog-body {
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.dialog-body ul {
+  padding-left: 20px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.busy {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 25;
+}
+
+.new-card {
+  color: var(--muted);
+}
+
+.new-card select {
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.import-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: grid;
+  gap: 10px;
+}
+
+.import-title {
+  color: var(--title);
+  font-size: 1.05rem;
+}
+
+.import-list .hint,
+.import-list .warning {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

@@ -93,3 +93,59 @@ export function protectionOf(mode: number): Protection {
   if (p === Mode.PROTECTED) return 'copy-and-delete';
   return 'copy';
 }
+
+/** Byte offsets of the fields in a 512-byte directory entry. */
+export const EntryField = {
+  mode: 0x00,
+  length: 0x04,
+  created: 0x08,
+  cluster: 0x10,
+  dirEntry: 0x14,
+  modified: 0x18,
+  attr: 0x20,
+  name: 0x40,
+} as const;
+
+/** Longest name the PS2 browser and mymc accept. */
+export const MAX_NAME_LENGTH = 31;
+
+export function packTod(t: Tod, out: Uint8Array, offset: number): void {
+  const view = new DataView(out.buffer, out.byteOffset);
+  out[offset] = 0;
+  out[offset + 1] = t.seconds;
+  out[offset + 2] = t.minutes;
+  out[offset + 3] = t.hours;
+  out[offset + 4] = t.day;
+  out[offset + 5] = t.month;
+  view.setUint16(offset + 6, t.year, true);
+}
+
+/** A moment as a card timestamp. Cards store Japan time (UTC+9), like a real console. */
+export function todFromDate(date: Date): Tod {
+  const jst = new Date(date.getTime() + 9 * 3600 * 1000);
+  return {
+    seconds: jst.getUTCSeconds(),
+    minutes: jst.getUTCMinutes(),
+    hours: jst.getUTCHours(),
+    day: jst.getUTCDate(),
+    month: jst.getUTCMonth() + 1,
+    year: jst.getUTCFullYear(),
+  };
+}
+
+/** A new directory entry. Length and cluster are filled in when the card is built. */
+export function makeEntry(fields: { mode: number; name: string; created: Tod; modified?: Tod; attr?: number }): Uint8Array {
+  const out = new Uint8Array(DIRENT_SIZE);
+  const view = new DataView(out.buffer);
+  view.setUint16(EntryField.mode, fields.mode, true);
+  packTod(fields.created, out, EntryField.created);
+  packTod(fields.modified ?? fields.created, out, EntryField.modified);
+  view.setUint32(EntryField.attr, fields.attr ?? 0, true);
+  for (let i = 0; i < fields.name.length && i < 32; i++) out[EntryField.name + i] = fields.name.charCodeAt(i) & 0xff;
+  return out;
+}
+
+/** Set a u32 field of a raw entry in place. */
+export function setEntryU32(entry: Uint8Array, field: number, value: number): void {
+  new DataView(entry.buffer, entry.byteOffset).setUint32(field, value >>> 0, true);
+}

@@ -62,3 +62,20 @@ export function parseMymcDir(text: string): { saves: MymcDirSave[]; freeKb: numb
   });
   return { saves, freeKb: Number(free.replace(/ KB Free$/, '').replace(/,/g, '')) };
 }
+
+/**
+ * A tree without where things are stored (clusters, chains, directory sizes):
+ * what rebuilding a card must keep unchanged.
+ */
+export function portableTree(entries: GoldenEntry[]): unknown[] {
+  return entries.map((e) => {
+    const out: Record<string, unknown> = { ...e };
+    delete out.cluster;
+    delete out.chain;
+    if (e.children) {
+      delete out.length;
+      out.children = portableTree(e.children);
+    }
+    return out;
+  });
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CardError, openCard } from '../../src/core';
+import { CardError, openCard, readContents, rebuildCard } from '../../src/core';
 import { loadCard, loadGolden } from '../helpers/fixtures';
 
 // Damage is applied to the no-ECC card, where cluster n sits at byte n * 1024.
@@ -120,5 +120,21 @@ describe('damaged cards', () => {
     expect(() => card.readFile('/NOPE')).toThrow(expect.objectContaining({ code: 'not-found' }));
     expect(() => card.readFile(`/${SAVE}`)).toThrow(expect.objectContaining({ code: 'not-a-file' }));
     expect(() => card.readDir(`/${SAVE}/icon.sys`)).toThrow(expect.objectContaining({ code: 'not-a-directory' }));
+  });
+});
+
+describe('rebuilding a damaged card', () => {
+  it('leaves out only the unreadable save, and says so', () => {
+    const b = loadCard(CARD);
+    const first = dataFile.cluster;
+    const second = u32(b, fatOffset(b, first)) & 0x7fffffff;
+    setU32(b, fatOffset(b, second), 0x80000000 | first); // loop
+    const card = openCard(b);
+    const { contents, unreadable } = readContents(card);
+    expect(unreadable).toEqual([expect.objectContaining({ path: `/${SAVE}/${SAVE}`, code: 'fat-cycle' })]);
+    expect(contents.entries.map((e) => e.name)).toEqual(card.listSaves().filter((s) => s.readable).map((s) => s.name));
+    const rebuilt = openCard(rebuildCard(card.bytes, contents));
+    expect(rebuilt.problems()).toEqual([]);
+    expect(rebuilt.listSaves().map((s) => s.name)).not.toContain(SAVE);
   });
 });

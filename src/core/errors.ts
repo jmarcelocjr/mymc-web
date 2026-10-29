@@ -11,7 +11,10 @@ export type CardErrorCode =
   | 'not-a-directory'
   | 'not-a-file'
   | 'bad-icon-sys'
-  | 'bad-icon';
+  | 'bad-icon'
+  | 'no-space'         // the saves don't fit on the card
+  | 'bad-save-file'    // a .psu or .max file is damaged or isn't one
+  | 'build-failed';    // a rebuilt card didn't match what was written to it
 
 /** Every problem the core detects is reported with this error type, never a crash. */
 export class CardError extends Error {

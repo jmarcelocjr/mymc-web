@@ -10,3 +10,4 @@ dist/
 
 # Screenshot used as a UI reference; it's not ours to publish.
 *.webp
+*.png

@@ -3,10 +3,10 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ShapeBlender, exportPsu, isDir, openCard, parseIcon, type MemoryCard } from '../src/core';
+import { ShapeBlender, exportPsu, isDir, openCard, readContents, rebuildCard, parseIcon, type MemoryCard } from '../src/core';
 import { REAL_CARD_PATH, loadRealCard, type GoldenCard } from './helpers/fixtures';
-import { describeTree } from './helpers/tree';
-import { mymcExportPsu } from './helpers/mymc';
+import { describeTree, portableTree } from './helpers/tree';
+import { mymcCheck, mymcExportPsu } from './helpers/mymc';
 
 const PYTHON = join(import.meta.dirname, '..', '.venv', 'bin', 'python');
 
@@ -74,6 +74,19 @@ describe.skipIf(!REAL_CARD_PATH)('real card', () => {
         }
       }
     }
+  });
+
+  it('rebuilds to a card with the same saves, keeping page 1 and the superblock', () => {
+    const source = getCard();
+    const { contents, unreadable } = readContents(source);
+    expect(unreadable).toEqual([]);
+    const bytes = rebuildCard(source.bytes, contents);
+    const rebuilt = openCard(bytes);
+    expect(portableTree(describeTree(rebuilt))).toEqual(portableTree(describeTree(source)));
+    // Page 0 (superblock) and page 1 (the 8 unexplained bytes), data and spare.
+    const raw = source.layout.rawPageSize;
+    expect(Buffer.from(bytes.subarray(0, 2 * raw)).equals(Buffer.from(source.bytes.subarray(0, 2 * raw)))).toBe(true);
+    if (existsSync(PYTHON)) expect(mymcCheck(bytes)).toContain('No errors found');
   });
 
   it.skipIf(!existsSync(PYTHON))('exports every save as the same .psu mymc++ writes', () => {

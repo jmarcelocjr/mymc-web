@@ -16,7 +16,7 @@ export function withMymc<T>(
   const dir = mkdtempSync(join(tmpdir(), 'mymc-'));
   try {
     const path = join(dir, 'card.ps2');
-    writeFileSync(path, card);
+    if (card.length > 0) writeFileSync(path, card); // an empty card: let mymc++ create the file (format)
     for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dir, name), bytes);
     const mymc = (...args: string[]) =>
       execFileSync(PYTHON, ['-m', 'mymcplusplus', path, ...args], { cwd: dir, maxBuffer: 256 * 1024 * 1024 }).toString();
@@ -32,5 +32,26 @@ export function mymcExportPsu(card: Uint8Array, name: string): Uint8Array {
     const out = join(dir, 'out.psu');
     mymc('export', '-p', '-o', out, name);
     return new Uint8Array(readFileSync(out));
+  });
+}
+
+/** `mymc++ check` output for a card. */
+export function mymcCheck(card: Uint8Array): string {
+  return withMymc(card, (mymc) => mymc('check'));
+}
+
+/** mymc++'s view of a card (the same data as the golden JSON files). */
+export function mymcDescribe<T>(card: Uint8Array): T {
+  return withMymc(card, (_mymc, dir) => {
+    const script =
+      'import sys, json; sys.path.insert(0, "scripts"); import make_fixtures as m; from pathlib import Path; ' +
+      'print(json.dumps(m.describe(Path(sys.argv[1]))))';
+    const out = execFileSync(PYTHON, ['-c', script, join(dir, 'card.ps2')], {
+      cwd: join(import.meta.dirname, '..', '..'),
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    // mymc++ prints "corrected N" for each ECC fix it makes on no-ECC images; skip that noise.
+    const json = out.toString().split('\n').filter((l) => !l.startsWith('corrected')).join('\n');
+    return JSON.parse(json) as T;
   });
 }

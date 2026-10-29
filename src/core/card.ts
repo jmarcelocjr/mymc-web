@@ -169,6 +169,19 @@ export class MemoryCard {
     return this.children(dir);
   }
 
+  /**
+   * A directory's "." and ".." entries followed by its existing entries, in
+   * card order ("/" for the root). Rebuilding the card keeps all of them.
+   */
+  directoryWithDots(path: string): DirEntry[] {
+    const dir = this.resolve(path);
+    let all: DirEntry[];
+    if (!dir) all = this.rootEntries();
+    else if (!isDir(dir)) throw new CardError('not-a-directory', `Not a directory: ${path}`);
+    else all = this.readDirectory(dir.cluster, dir.length);
+    return all.filter((e, i) => i < 2 || exists(e));
+  }
+
   stat(path: string): DirEntry {
     const e = this.resolve(path);
     if (!e) return this.rootEntries()[0]!;

@@ -11,9 +11,12 @@ interface Props {
   /** Show the save's copy or delete animation on the grid. */
   onPreview?: (kind: 'copy' | 'delete') => void;
   onExport?: (format: ExportFormat) => void;
+  onDelete?: (() => void) | undefined;
+  /** Why the save can't be deleted, if it can't. */
+  deleteBlocked?: string | undefined;
 }
 
-export function SaveDetails({ card, save, onClose, onPreview, onExport }: Props) {
+export function SaveDetails({ card, save, onClose, onPreview, onExport, onDelete, deleteBlocked }: Props) {
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [line1, line2] = displayTitle(save);
   const isDirectory = isDir(save.entry);
@@ -73,6 +76,17 @@ export function SaveDetails({ card, save, onClose, onPreview, onExport }: Props)
           >
             Export .zip
           </button>
+          {onDelete && (
+            <button
+              type="button"
+              className="danger-action"
+              onClick={onDelete}
+              disabled={!!deleteBlocked}
+              title={deleteBlocked ?? 'Make a new card without this save'}
+            >
+              Delete…
+            </button>
+          )}
         </div>
       )}
 
