@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CardError, isDir, type MemoryCard, type SaveSummary } from '../core';
 import { HexDump } from './HexDump';
+import { canExport, type ExportFormat } from './exportSave';
 import { KIND_LABEL, PROTECTION_LABEL, displayTitle, formatBytes, formatKb, formatTod } from './format';
 
 interface Props {
@@ -9,9 +10,10 @@ interface Props {
   onClose: () => void;
   /** Show the save's copy or delete animation on the grid. */
   onPreview?: (kind: 'copy' | 'delete') => void;
+  onExport?: (format: ExportFormat) => void;
 }
 
-export function SaveDetails({ card, save, onClose, onPreview }: Props) {
+export function SaveDetails({ card, save, onClose, onPreview, onExport }: Props) {
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [line1, line2] = displayTitle(save);
   const isDirectory = isDir(save.entry);
@@ -51,6 +53,27 @@ export function SaveDetails({ card, save, onClose, onPreview }: Props) {
         <p className="warning">
           This save can't be read: {save.problem.message} ({save.problem.path})
         </p>
+      )}
+
+      {onExport && (
+        <div className="actions">
+          <button
+            type="button"
+            onClick={() => onExport('psu')}
+            disabled={!canExport(save, 'psu')}
+            title="A single file that PS2 tools (uLaunchELF, mymc, OPL Manager…) can import"
+          >
+            Export .psu
+          </button>
+          <button
+            type="button"
+            onClick={() => onExport('zip')}
+            disabled={!canExport(save, 'zip')}
+            title="The save's files as they are on the card, in a folder"
+          >
+            Export .zip
+          </button>
+        </div>
       )}
 
       <dl className="facts">

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MemoryCard, SaveSummary } from '../core';
+import { CardError, type MemoryCard, type SaveSummary } from '../core';
 import { IconGrid, type GridApi } from './IconGrid';
 import { SaveDetails } from './SaveDetails';
+import { download } from './download';
+import { canExport, exportSave, type ExportFormat } from './exportSave';
 import { displayTitle, formatKb, todToDate } from './format';
 
 type SortKey = 'card' | 'title' | 'folder' | 'size' | 'modified';
@@ -30,6 +32,35 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [columns, setColumns] = useState(5);
   const grid = useRef<GridApi | null>(null);
+  const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
+
+  // Notices go away on their own after a few seconds.
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), notice.error ? 8000 : 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const doExport = useCallback(
+    (save: SaveSummary, format: ExportFormat) => {
+      if (!canExport(save, format)) return;
+      try {
+        const file = exportSave(card, save, format);
+        download(file);
+        // Show the save's copy animation while the download starts.
+        setDetailsOpen(false);
+        void grid.current?.playAction(save.name, 'copy');
+        setNotice({
+          text:
+            `Downloaded ${file.fileName}` +
+            (file.skipped.length ? ` (left out subfolders it can't hold: ${file.skipped.join(', ')})` : '.'),
+        });
+      } catch (e) {
+        setNotice({ text: `Couldn't export ${save.name}: ${e instanceof CardError ? e.message : String(e)}`, error: true });
+      }
+    },
+    [card],
+  );
 
   const all = useMemo(() => card.listSaves(), [card]);
   const problems = useMemo(() => card.problems(), [card]);
@@ -159,6 +190,15 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
           <button type="button" className="hint-button" onClick={() => current && setDetailsOpen(true)} disabled={!current}>
             <span className="btn-cross">✕</span> Details
           </button>
+          <button
+            type="button"
+            className="hint-button"
+            onClick={() => current && doExport(current, 'psu')}
+            disabled={!current || !canExport(current, 'psu')}
+            title="Download the selected save as a .psu file"
+          >
+            <span className="btn-triangle">△</span> Export
+          </button>
           <button type="button" className="hint-button" onClick={() => setDetailsOpen(false)} disabled={!detailsOpen}>
             <span className="btn-circle">○</span> Back
           </button>
@@ -171,12 +211,21 @@ export function Browser({ card, fileName, onOpenFile }: Props) {
           card={card}
           save={current}
           onClose={() => setDetailsOpen(false)}
+          onExport={(format) => doExport(current, format)}
           onPreview={(kind) => {
             // Close the panel so the icon is in view, then play its animation.
             setDetailsOpen(false);
             void grid.current?.playAction(current.name, kind);
           }}
         />
+      )}
+      {notice && (
+        <div className={notice.error ? 'toast' : 'toast toast-info'} role={notice.error ? 'alert' : 'status'}>
+          <span>{notice.text}</span>
+          <button type="button" className="icon-button" onClick={() => setNotice(null)} aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
       )}
     </main>
   );

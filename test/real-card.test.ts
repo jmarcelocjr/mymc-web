@@ -3,9 +3,10 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ShapeBlender, openCard, parseIcon, type MemoryCard } from '../src/core';
+import { ShapeBlender, exportPsu, isDir, openCard, parseIcon, type MemoryCard } from '../src/core';
 import { REAL_CARD_PATH, loadRealCard, type GoldenCard } from './helpers/fixtures';
 import { describeTree } from './helpers/tree';
+import { mymcExportPsu } from './helpers/mymc';
 
 const PYTHON = join(import.meta.dirname, '..', '.venv', 'bin', 'python');
 
@@ -72,6 +73,16 @@ describe.skipIf(!REAL_CARD_PATH)('real card', () => {
           expect(w.reduce((a, v) => a + v, 0)).toBeCloseTo(1, 4);
         }
       }
+    }
+  });
+
+  it.skipIf(!existsSync(PYTHON))('exports every save as the same .psu mymc++ writes', () => {
+    const bytes = loadRealCard();
+    const card = openCard(bytes);
+    for (const save of card.listSaves()) {
+      if (!isDir(save.entry) || !save.readable) continue;
+      const ours = exportPsu(card, save.name).bytes;
+      expect(Buffer.from(ours).equals(Buffer.from(mymcExportPsu(bytes, save.name))), save.name).toBe(true);
     }
   });
 

@@ -182,6 +182,10 @@ select {
   color: #a7b8ff;
 }
 
+.btn-triangle {
+  color: #6fe0c8;
+}
+
 .btn-circle {
   color: #ff8f8f;
 }
@@ -415,6 +419,41 @@ select {
   z-index: 10;
 }
 
+.toast-info {
+  background: #1f2a3a;
+  border-color: var(--accent);
+}
+
+/* Inside the browser screen, keep notices clear of the footer toolbar. */
+.screen .toast {
+  bottom: 96px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.actions button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .drop-overlay {
   position: fixed;
   inset: 12px;
@@ -441,5 +480,9 @@ select {
 
   .hints {
     gap: 16px;
+  }
+
+  .screen .toast {
+    bottom: 140px;
   }
 }
