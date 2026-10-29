@@ -14,6 +14,7 @@ import {
   type Tod,
 } from '../core';
 import type { Session } from './App';
+import { useActionScreen, type ScreenSpec } from './ActionScreen';
 import { useDialog } from './Dialog';
 import { IconGrid, type GridApi } from './IconGrid';
 import { SaveDetails } from './SaveDetails';
@@ -76,8 +77,7 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const { dialog, ask, isOpen: dialogOpen } = useDialog();
   const [busy, setBusy] = useState<string | null>(null);
-  /** An animation to play once the grid shows the new card (after an import). */
-  const pendingAnimation = useRef<string | null>(null);
+  const { screen, show, working, close: closeScreen, isOpen: screenOpen } = useActionScreen();
 
   // Notices go away on their own after a few seconds.
   useEffect(() => {
@@ -87,21 +87,25 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
   }, [notice]);
 
   const doExport = useCallback(
-    (save: SaveSummary, format: ExportFormat) => {
-      if (!canExport(save, format)) return;
+    (save: SaveSummary, format: ExportFormat, animate = true): boolean => {
+      if (!canExport(save, format)) return false;
       try {
         const file = exportSave(card, save, format);
         download(file);
         // Show the save's copy animation while the download starts.
-        setDetailsOpen(false);
-        void grid.current?.playAction(save.name, 'copy');
+        if (animate) {
+          setDetailsOpen(false);
+          void grid.current?.playAction(save.name, 'copy');
+        }
         setNotice({
           text:
             `Downloaded ${file.fileName}` +
             (file.skipped.length ? ` (left out subfolders it can't hold: ${file.skipped.join(', ')})` : '.'),
         });
+        return true;
       } catch (e) {
         setNotice({ text: `Couldn't export ${save.name}: ${e instanceof CardError ? e.message : String(e)}`, error: true });
+        return false;
       }
     },
     [card],
@@ -190,38 +194,118 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
     }
   }, []);
 
+  /** What the PS2 shows about a save on the right of its menu. */
+  const saveInfo = useCallback(
+    (save: SaveSummary): Pick<ScreenSpec, 'source' | 'title' | 'date' | 'size'> => ({
+      source: 'Memory Card (PS2)',
+      title: displayTitle(save).filter((l) => l.trim()).length ? displayTitle(save).filter((l) => l.trim()) : [save.name],
+      date: formatTod(save.entry.modified),
+      size: formatKb(save.sizeOnCard),
+    }),
+    [],
+  );
+
+  /** Back to the grid from the save menu. */
+  const leaveMenu = useCallback(() => {
+    grid.current?.clearFocus();
+    closeScreen();
+  }, [closeScreen]);
+
+  /**
+   * "Delete — Are you sure?" with the save's delete icon. Resolves true when
+   * the save was deleted (the menu is closed and the new card is on its way).
+   */
+  const confirmDelete = useCallback(
+    async (save: SaveSummary): Promise<boolean> => {
+      const title = displayTitle(save).join(' ').trim() || save.name;
+      grid.current?.focusSave(save.name, 'delete');
+      const answer = await show({
+        ...saveInfo(save),
+        heading: 'Delete',
+        prompt: 'Are you sure?',
+        options: [
+          { label: 'Yes', value: 'yes' },
+          { label: 'No', value: 'no' },
+        ],
+        row: true,
+        initial: 'no',
+      });
+      const back = () => {
+        grid.current?.focusSave(save.name, 'normal');
+        return false;
+      };
+      if (answer !== 'yes') return back();
+      const dropped = await ensureWritable();
+      if (!dropped) return back();
+      working('Deleting…');
+      const next = await rebuild('Deleting…', () => applyContents(card, withoutSave(readContents(card).contents, save.name)));
+      if (!next) return back();
+      await grid.current?.playFocusAction('delete', false);
+      leaveMenu();
+      setDetailsOpen(false);
+      onChange(next, describe(`Deleted ${title}`, dropped));
+      return true;
+    },
+    [card, show, working, saveInfo, ensureWritable, rebuild, leaveMenu, onChange],
+  );
+
+  /** Delete from anywhere (Delete key, details panel): straight to the confirmation. */
   const doDelete = useCallback(
     async (save: SaveSummary) => {
       const title = displayTitle(save).join(' ').trim() || save.name;
+      if (session.readOnly) {
+        void ensureWritable(); // explains why
+        return;
+      }
       if (!canDelete(save)) {
         setNotice({ text: `“${title}” is protected against deleting, like on the PS2.`, error: true });
         return;
       }
-      const dropped = await ensureWritable();
-      if (!dropped) return;
-      const choice = await ask({
-        title: 'Delete this save?',
-        body: (
-          <>
-            <p>
-              <strong>{title}</strong> <span className="mono">({save.name})</span>, {formatKb(save.sizeOnCard)}.
-            </p>
-            <p>Your original file isn't changed: this makes a new card for you to download.</p>
-          </>
-        ),
-        actions: [
-          { label: 'Cancel', value: 'cancel' },
-          { label: 'Delete', value: 'delete', kind: 'danger' },
-        ],
-      });
-      if (choice !== 'delete') return;
-      const next = await rebuild('Deleting…', () => applyContents(card, withoutSave(readContents(card).contents, save.name)));
-      if (!next) return;
       setDetailsOpen(false);
-      await grid.current?.playAction(save.name, 'delete', false);
-      onChange(next, describe(`Deleted ${title}`, dropped));
+      grid.current?.focusSave(save.name);
+      if (!(await confirmDelete(save))) leaveMenu();
     },
-    [card, ask, ensureWritable, rebuild, onChange],
+    [session.readOnly, ensureWritable, confirmDelete, leaveMenu],
+  );
+
+  /** The PS2's save menu: the icon large on the left, the save and what to do with it on the right. */
+  const openMenu = useCallback(
+    async (save: SaveSummary) => {
+      setDetailsOpen(false);
+      grid.current?.focusSave(save.name);
+      let initial: string | undefined;
+      for (;;) {
+        const deleteBlocked = session.readOnly
+          ? 'This card is read-only'
+          : canDelete(save)
+            ? undefined
+            : 'Protected against deleting';
+        const choice = await show({
+          ...saveInfo(save),
+          options: [
+            { label: 'Export .psu', value: 'psu', disabled: canExport(save, 'psu') ? undefined : "Can't be exported as .psu" },
+            { label: 'Export .zip', value: 'zip', disabled: canExport(save, 'zip') ? undefined : "Can't be exported" },
+            { label: 'Delete', value: 'delete', disabled: deleteBlocked },
+            { label: 'Details', value: 'details' },
+          ],
+          initial,
+        });
+        initial = choice ?? undefined;
+        if (choice === 'psu' || choice === 'zip') {
+          if (doExport(save, choice, false)) {
+            working('Copying…');
+            await grid.current?.playFocusAction('copy');
+          }
+        } else if (choice === 'delete') {
+          if (await confirmDelete(save)) return;
+        } else {
+          leaveMenu();
+          if (choice === 'details') setDetailsOpen(true);
+          return;
+        }
+      }
+    },
+    [session.readOnly, show, working, saveInfo, confirmDelete, leaveMenu, doExport],
   );
 
   const doImport = useCallback(
@@ -241,87 +325,73 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
       const dropped = await ensureWritable();
       if (!dropped) return;
 
-      // One summary of what's coming in: game, folder, size, date, and what it replaces.
+      // One screen per save, as the PS2 asks before copying: its icon on the
+      // left, the game, date and size on the right, and whether to copy it.
       const base = readContents(card).contents;
-      const byName = new Map(parsed.map((p) => [p.node.name, p])); // the same folder twice: the last one wins
-      const items = [...byName.values()].map(({ node, warnings }) => {
-        const title = nodeTitle(node)?.display.join(' ').replace(/\s+/g, ' ').trim();
-        return {
-          node,
-          warnings,
-          title: title || node.name,
-          existing: base.entries.find((e) => e.name === node.name),
-          size: nodeClusters(node, card.clusterSize) * card.clusterSize,
-          files: node.dir?.children.length ?? 0,
-        };
-      });
-      const fresh = items.filter((i) => !i.existing);
-      const replacing = items.length - fresh.length;
-      const plan = (list: typeof items) => list.reduce((c, i) => withSave(c, i.node), base);
-      const freeText = (list: typeof items) => {
-        const free = freeAfter(card, plan(list));
-        return free < 0 ? `not enough space (${formatKb(-free)} more needed)` : `${formatKb(free)} free afterwards`;
-      };
-
-      const choice = await ask({
-        title: items.length === 1 ? 'Import this save?' : `Import ${items.length} saves?`,
-        body: (
-          <>
-            <ul className="import-list">
-              {items.map((i) => (
-                <li key={i.node.name}>
-                  <div className="import-title">{i.title}</div>
-                  <div className="hint">
-                    <span className="mono">{i.node.name}</span> · {formatKb(i.size)} · {i.files} file{i.files === 1 ? '' : 's'} ·
-                    modified {formatTod(modifiedOf(i.node))}
-                  </div>
-                  {i.existing && (
-                    <div className="warning">
-                      Already on the card (modified {formatTod(modifiedOf(i.existing))}){' '}
-                      {compareAge(modifiedOf(i.node), modifiedOf(i.existing))}.
-                    </div>
-                  )}
-                  {i.warnings.map((w) => (
-                    <div key={w} className="warning">
-                      {w}
-                    </div>
-                  ))}
-                </li>
+      const byName = new Map(parsed.map((p, i) => [p.node.name, { ...p, file: files[i]!.name }])); // the same folder twice: the last one wins
+      const items = [...byName.values()];
+      let contents = base;
+      const added: string[] = [];
+      const what: string[] = [];
+      for (const [n, { node, warnings, file }] of items.entries()) {
+        const lines = nodeTitle(node)?.display.filter((l) => l.trim()) ?? [];
+        const title = lines.join(' ').replace(/\s+/g, ' ').trim() || node.name;
+        const existing = base.entries.find((e) => e.name === node.name);
+        const next = withSave(contents, node);
+        const free = freeAfter(card, next);
+        grid.current?.focusNode(node);
+        const answer = await show({
+          source: items.length > 1 ? `${file} (${n + 1} of ${items.length})` : file,
+          title: lines.length ? lines : [node.name],
+          date: formatTod(modifiedOf(node)),
+          size: formatKb(nodeClusters(node, card.clusterSize) * card.clusterSize),
+          notes: (
+            <>
+              {existing && (
+                <div className="warning">
+                  Already on the card, modified {formatTod(modifiedOf(existing))} {compareAge(modifiedOf(node), modifiedOf(existing))}
+                </div>
+              )}
+              {warnings.map((w) => (
+                <div key={w} className="warning">
+                  {w}
+                </div>
               ))}
-            </ul>
-            <p className="hint">
-              {replacing > 0 && fresh.length > 0
-                ? `Replacing: ${freeText(items)}. Skipping those already on the card: ${freeText(fresh)}.`
-                : `${freeText(items)[0]!.toUpperCase()}${freeText(items).slice(1)}.`}
-            </p>
-          </>
-        ),
-        actions: [
-          { label: 'Cancel', value: 'cancel' },
-          ...(replacing > 0 && fresh.length > 0 ? [{ label: 'Import new only', value: 'new' }] : []),
-          replacing > 0
-            ? { label: replacing === items.length && items.length === 1 ? 'Replace' : 'Import and replace', value: 'all', kind: 'danger' as const }
-            : { label: 'Import', value: 'all', kind: 'primary' as const },
-        ],
-      });
-      if (choice !== 'all' && choice !== 'new') return;
-      const chosen = choice === 'all' ? items : fresh;
-      if (chosen.length === 0) return;
-      const contents = plan(chosen);
-      const free = freeAfter(card, contents);
-      if (free < 0) {
-        setNotice({ text: `Not enough space on the card: ${formatKb(-free)} more is needed. Delete something first.`, error: true });
+              <div className={free < 0 ? 'warning' : undefined}>
+                {free < 0 ? `Not enough space: ${formatKb(-free)} more is needed` : `${formatKb(free)} free afterwards`}
+              </div>
+            </>
+          ),
+          heading: existing ? 'Overwrite' : 'Copy',
+          prompt: existing ? 'Replace the save on the card?' : 'Copy to this card?',
+          options: [
+            { label: 'Yes', value: 'yes', disabled: free < 0 ? 'Not enough space' : undefined },
+            { label: 'No', value: 'no' },
+          ],
+          row: true,
+          initial: existing ? 'no' : 'yes',
+        });
+        if (answer === null) break; // Back: stop here, keeping what was already chosen
+        if (answer !== 'yes') continue;
+        contents = next;
+        added.push(node.name);
+        what.push(existing ? `${title} (replaced)` : title);
+        working('Copying…');
+        grid.current?.focusNode(node, 'copy');
+        await grid.current?.playFocusAction('copy');
+      }
+      if (added.length === 0) {
+        leaveMenu();
         return;
       }
-      const added = chosen.map((i) => i.node.name);
+      working('Copying…');
       const next = await rebuild('Importing…', () => applyContents(card, contents));
+      leaveMenu();
       if (!next) return;
-      pendingAnimation.current = added[added.length - 1]!;
-      setSelectedName(pendingAnimation.current);
-      const what = chosen.map((i) => (i.existing ? `${i.title} (replaced)` : i.title)).join(', ');
-      onChange(next, describe(`Imported ${what}`, dropped));
+      setSelectedName(added[added.length - 1]!);
+      onChange(next, describe(`Imported ${what.join(', ')}`, dropped));
     },
-    [card, ask, ensureWritable, rebuild, onChange],
+    [card, show, working, ensureWritable, rebuild, leaveMenu, onChange],
   );
 
   // Saves dropped or picked in the app come in through here.
@@ -332,14 +402,6 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
     onImportHandled();
     void doImport(importRequest.files);
   }, [importRequest, doImport, onImportHandled]);
-
-  // After an import, the grid shows the new card; play the copy animation on the new save.
-  useEffect(() => {
-    const name = pendingAnimation.current;
-    if (!name) return;
-    pendingAnimation.current = null;
-    void grid.current?.playAction(name, 'copy');
-  }, [card]);
 
   const askNewCard = useCallback(async () => {
     const choice = await ask({
@@ -353,10 +415,10 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
     if (choice && choice !== 'cancel') onNewCard(Number(choice) as CardSizeMb);
   }, [ask, onNewCard]);
 
-  // Keyboard: arrows move, Enter opens details, Escape goes back.
+  // Keyboard: arrows move, Enter opens the save's menu, Escape goes back.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (dialogOpen || busy) return;
+      if (dialogOpen || busy || screenOpen) return;
       const target = e.target as HTMLElement;
       if (target.closest('input, select, textarea, button, [tabindex]') && e.key !== 'Escape') return;
       if (e.key === 'Escape') {
@@ -370,8 +432,8 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
         e.preventDefault();
         const next = selected + moves[e.key]!;
         if (next >= 0 && next < saves.length) select(next);
-      } else if (e.key === 'Enter') {
-        setDetailsOpen(true);
+      } else if (e.key === 'Enter' && saves[selected]) {
+        void openMenu(saves[selected]);
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && saves[selected]) {
         e.preventDefault();
         void doDelete(saves[selected]);
@@ -379,13 +441,13 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, saves, columns, detailsOpen, select, dialogOpen, busy, doDelete]);
+  }, [selected, saves, columns, detailsOpen, select, dialogOpen, busy, screenOpen, doDelete, openMenu]);
 
   const [title1, title2] = current ? displayTitle(current) : ['', ''];
   const usedPct = capacity > 0 ? Math.min(100, ((capacity - free) / capacity) * 100) : 0;
 
   return (
-    <main className="screen">
+    <main className={screenOpen ? 'screen menu-open' : 'screen'}>
       <IconGrid
         card={card}
         saves={saves}
@@ -393,7 +455,7 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
         onSelect={select}
         onOpen={(i) => {
           select(i);
-          setDetailsOpen(true);
+          if (saves[i]) void openMenu(saves[i]);
         }}
         onColumns={setColumns}
         apiRef={grid}
@@ -474,8 +536,8 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
           </button>
         </div>
         <div className="hints">
-          <button type="button" className="hint-button" onClick={() => current && setDetailsOpen(true)} disabled={!current}>
-            <span className="btn-cross">✕</span> Details
+          <button type="button" className="hint-button" onClick={() => current && void openMenu(current)} disabled={!current}>
+            <span className="btn-cross">✕</span> Options
           </button>
           <button
             type="button"
@@ -508,8 +570,9 @@ export function Browser({ session, importRequest, onImportHandled, onOpenFile, o
           }}
         />
       )}
+      {screen}
       {dialog}
-      {busy && (
+      {busy && !screenOpen && (
         <div className="busy" role="status">
           {busy}
         </div>

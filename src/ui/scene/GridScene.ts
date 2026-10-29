@@ -20,6 +20,8 @@ const ICON_CENTER = 2.2;
 /** Depth of the glow behind the selected icon. */
 const GLOW_Z = -2;
 /** How fast the selected icon turns, in radians per second (a turn every ~6 s). */
+/** How bright the grid stays behind the save menu, as on the PS2. */
+const GRID_DIM = 0.22;
 const SPIN_SPEED = 1.05;
 /** Length of the copy and delete animations, in seconds. */
 const ACTION_SECONDS = { copy: 1.6, delete: 1.8 } as const;
@@ -59,6 +61,17 @@ interface Entry {
   gone: boolean;
   /** Time the current animation loop started, so actions play from their first frame. */
   animStart: number;
+  /** Height of the pivot when the icon is at rest. */
+  baseY: number;
+}
+
+/** The icon shown large on the left of the save menu (the PS2's options screen). */
+interface Focus {
+  entry: Entry;
+  /** The grid entry whose icon object is borrowed, if any; it gets it back on clear. */
+  owner?: Entry | undefined;
+  /** Where the icon should sit, and how big; eased toward every frame. */
+  scale: number;
 }
 
 /** Scale a visual to the common icon size and center it on its pivot. Returns its on-screen size. */
@@ -149,6 +162,9 @@ export class GridScene {
   private frame = 0;
   private glowSize = 5;
   private lastTime = 0;
+  private focus?: Focus | undefined;
+  /** 1 while the grid shows; dimmed behind the save menu, as on the PS2. */
+  private gridFade = 1;
   private readonly reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   private readonly start = performance.now();
   private readonly resizeObserver: ResizeObserver;
@@ -218,6 +234,7 @@ export class GridScene {
         actionOpacity: 1,
         gone: false,
         animStart: old?.animStart ?? time,
+        baseY: ICON_CENTER,
       };
     });
     this.layout();
@@ -240,6 +257,94 @@ export class GridScene {
       e.animStart = this.now();
       e.action = { kind, start: this.now(), restore, done: resolve };
     });
+  }
+
+  /**
+   * Open the save menu look: fade the grid out and show `visual` large on the
+   * left (on top on narrow screens). With `ownerIndex`, the icon flies there
+   * from its place in the grid. Calling again swaps the icon (e.g. to the
+   * delete icon) without moving it.
+   */
+  setFocus(visual: GridVisual, ownerIndex?: number): void {
+    if (this.focus) {
+      if (this.focus.entry.action) this.finishAction(this.focus.entry);
+      if (visual !== this.focus.entry.shown) this.show(this.focus.entry, visual);
+      return;
+    }
+    const owner = ownerIndex === undefined ? undefined : this.items[ownerIndex];
+    const holder = new THREE.Group();
+    const pivot = new THREE.Group();
+    holder.add(pivot);
+    this.scene.add(holder);
+    const size = fitVisual(visual);
+    pivot.add(visual.object);
+    const target = this.focusTarget();
+    if (owner) {
+      // Start where the icon is in the grid, at its grid size.
+      holder.position.set(owner.holder.position.x, owner.holder.position.y + owner.centerY, 0);
+      holder.scale.setScalar(1);
+    } else {
+      holder.position.copy(target.position);
+      holder.scale.setScalar(0.001);
+    }
+    const spin = owner?.spin ?? 0;
+    pivot.rotation.y = spin;
+    visual.setHighlight(0);
+    this.focus = {
+      owner: owner && owner.shown === visual ? owner : undefined,
+      scale: target.scale,
+      entry: {
+        item: { key: '__focus__', visual },
+        holder,
+        pivot,
+        shown: visual,
+        hit: owner?.hit ?? new THREE.Mesh(),
+        centerY: 0,
+        size,
+        spin,
+        actionOpacity: 1,
+        gone: false,
+        animStart: owner?.animStart ?? this.now(),
+        baseY: 0,
+      },
+    };
+  }
+
+  /** Back to the grid. */
+  clearFocus(): void {
+    const focus = this.focus;
+    if (!focus) return;
+    if (focus.entry.action) focus.entry.action.done();
+    this.scene.remove(focus.entry.holder);
+    if (focus.entry.shown.object.parent === focus.entry.pivot) focus.entry.pivot.remove(focus.entry.shown.object);
+    // Give borrowed icons back to their place in the grid.
+    for (const e of this.items) {
+      if (e.shown.object.parent !== e.pivot) {
+        fitVisual(e.shown);
+        e.pivot.add(e.shown.object);
+        e.shown.setHighlight(this.items[this.selected] === e ? 0.25 : 0);
+      }
+    }
+    this.focus = undefined;
+  }
+
+  /**
+   * Play the copy or delete animation on the focused icon. With `restore`
+   * false the icon stays hidden afterwards (a deleted save).
+   */
+  playFocusAction(kind: IconAction, restore = true): Promise<void> {
+    const e = this.focus?.entry;
+    if (!e) return Promise.resolve();
+    if (e.action) this.finishAction(e);
+    e.gone = false;
+    return new Promise<void>((resolve) => {
+      e.animStart = this.now();
+      e.action = { kind, start: this.now(), restore, done: resolve };
+    });
+  }
+
+  get focused(): boolean {
+    return this.focus !== undefined;
   }
 
   setSelected(index: number): void {
@@ -267,6 +372,7 @@ export class GridScene {
   dispose(): void {
     cancelAnimationFrame(this.frame);
     for (const e of this.items) e.action?.done();
+    this.focus?.entry.action?.done();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('click', this.handleClick);
     this.canvas.removeEventListener('dblclick', this.handleDoubleClick);
@@ -353,9 +459,16 @@ export class GridScene {
     const bandBottom = screenTop - (px - this.insets().bottom) * unitsPerPx;
     const fade = 1.0; // world units over which an icon fades
     const edge = (y: number) => clamp01(1 - Math.max(y - bandTop, bandBottom - y) / fade);
-    this.items.forEach((e) => e.shown.setOpacity(edge(e.holder.position.y + e.centerY) * e.actionOpacity));
+    const focusObject = this.focus?.entry.shown.object;
+    this.items.forEach((e) => {
+      if (e.shown.object === focusObject) return; // shown large in the save menu
+      e.shown.setOpacity(edge(e.holder.position.y + e.centerY) * e.actionOpacity * this.gridFade);
+    });
     const sel = this.items[this.selected];
-    if (sel) (this.glow.material as THREE.SpriteMaterial).opacity = edge(sel.holder.position.y + sel.centerY) * sel.actionOpacity;
+    if (sel) {
+      (this.glow.material as THREE.SpriteMaterial).opacity =
+        edge(sel.holder.position.y + sel.centerY) * sel.actionOpacity * clamp01((this.gridFade - GRID_DIM) / (1 - GRID_DIM));
+    }
   }
 
   private insets(): { top: number; bottom: number } {
@@ -411,7 +524,9 @@ export class GridScene {
 
     const dt = Math.min(time - this.lastTime, 0.1);
     this.lastTime = time;
+    this.gridFade += ((this.focus ? GRID_DIM : 1) - this.gridFade) * Math.min(1, dt * 8);
     this.animateIcons(time, dt);
+    this.animateFocus(time, dt);
     this.onFrame?.(time, this.selected);
 
     this.renderer.clear();
@@ -441,8 +556,8 @@ export class GridScene {
     if (action.restore) {
       // Back to the normal icon; animateIcons eases it back to full size.
       if (e.shown !== e.item.visual) this.show(e, e.item.visual);
-      e.pivot.position.y = ICON_CENTER;
-      e.centerY = ICON_CENTER;
+      e.pivot.position.y = e.baseY;
+      e.centerY = e.baseY;
     } else {
       e.gone = true;
       e.actionOpacity = 0;
@@ -481,13 +596,13 @@ export class GridScene {
     const t = clamp01((time - action.start) / ACTION_SECONDS[action.kind]);
     if (action.kind === 'copy') {
       const hop = Math.sin(t * Math.PI);
-      e.pivot.position.y = ICON_CENTER + hop * 1.2;
+      e.pivot.position.y = e.baseY + hop * 1.2;
       e.pivot.rotation.y = e.spin + easeInOut(t) * 2 * Math.PI;
       e.pivot.scale.setScalar(1 + hop * 0.12);
     } else {
       const lift = easeInOut(clamp01(t / 0.35));
       const vanish = easeInOut(clamp01((t - 0.35) / 0.65));
-      e.pivot.position.y = ICON_CENTER + lift * 0.8 - vanish * 2.5;
+      e.pivot.position.y = e.baseY + lift * 0.8 - vanish * 2.5;
       e.pivot.rotation.y = e.spin + (t * t) * 4 * Math.PI;
       e.pivot.scale.setScalar(Math.max(1 - vanish, 0.001));
       e.actionOpacity = 1 - vanish;
@@ -499,7 +614,39 @@ export class GridScene {
     }
   }
 
+  /** Where the focused icon goes: left of center on wide screens, above the text on narrow ones. */
+  private focusTarget(): { position: THREE.Vector3; scale: number } {
+    const h = this.worldHeight();
+    const w = h * this.camera.aspect;
+    const narrow = this.camera.aspect < 0.9;
+    const size = narrow ? Math.min(w * 0.5, h * 0.26) : Math.min(h * 0.42, w * 0.3);
+    const position = narrow
+      ? new THREE.Vector3(0, this.cameraY + h * 0.17, 0)
+      : new THREE.Vector3(-w * 0.24, this.cameraY - h * 0.02, 0);
+    return { position, scale: size / ICON_SIZE };
+  }
+
+  private animateFocus(time: number, dt: number): void {
+    const focus = this.focus;
+    if (!focus) return;
+    const e = focus.entry;
+    const target = this.focusTarget();
+    const k = Math.min(1, dt * 7);
+    e.holder.position.lerp(target.position, k);
+    e.holder.scale.setScalar(e.holder.scale.x + (target.scale - e.holder.scale.x) * k);
+    if (e.action) this.stepAction(e, time);
+    else if (!e.gone) {
+      if (!this.reducedMotion) e.spin += dt * SPIN_SPEED;
+      e.pivot.rotation.y = e.spin;
+      e.pivot.scale.setScalar(e.pivot.scale.x + (1 - e.pivot.scale.x) * k);
+      e.actionOpacity += (1 - e.actionOpacity) * k;
+    }
+    e.shown.setOpacity(e.gone ? 0 : e.actionOpacity);
+    if (!this.reducedMotion || e.action) e.shown.animate(time - e.animStart);
+  }
+
   private pick(event: MouseEvent): number {
+    if (this.focus) return -1;
     const rect = this.canvas.getBoundingClientRect();
     const pointer = new THREE.Vector2(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -519,6 +666,7 @@ export class GridScene {
 
   /** Scroll rows without changing the selection. */
   private handleWheel = (event: WheelEvent): void => {
+    if (this.focus) return;
     this.wheelAccum += event.deltaY;
     if (Math.abs(this.wheelAccum) < 60) return;
     const step = Math.sign(this.wheelAccum);

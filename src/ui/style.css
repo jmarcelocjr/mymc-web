@@ -625,3 +625,165 @@ button.danger-action:hover:not(:disabled) {
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------- save menu (PS2 style) */
+
+.screen .hud-top,
+.screen .hud-bottom,
+.screen .banner,
+.screen .empty {
+  transition: opacity 0.25s ease;
+}
+
+.menu-open .hud-top,
+.menu-open .hud-bottom,
+.menu-open .banner,
+.menu-open .empty {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.action-screen {
+  position: absolute;
+  inset: 0;
+  text-shadow: var(--shadow);
+  animation: action-in 0.25s ease;
+}
+
+@keyframes action-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.action-info {
+  position: absolute;
+  left: 48%;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.action-source {
+  font-size: clamp(1.05rem, 2.4vw, 1.5rem);
+}
+
+.action-title {
+  color: var(--title);
+  font-size: clamp(1.4rem, 3.6vw, 2.2rem);
+  line-height: 1.2;
+  margin: 2px 0 10px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.action-meta {
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.action-notes {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  max-width: 34em;
+}
+
+.action-notes .warning {
+  color: var(--warn);
+}
+
+.action-heading {
+  color: var(--title);
+  font-size: clamp(1.3rem, 3vw, 1.9rem);
+  margin-top: 18px;
+}
+
+.action-prompt {
+  font-size: clamp(1.3rem, 3vw, 1.9rem);
+  margin-top: 6px;
+}
+
+.action-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 22px;
+}
+
+.action-heading + .action-prompt + .action-options,
+.action-prompt + .action-options {
+  margin-top: 8px;
+}
+
+.action-row {
+  flex-direction: row;
+  gap: 2.2em;
+}
+
+.action-option {
+  border: 0;
+  background: none;
+  padding: 2px 8px;
+  font-size: clamp(1.35rem, 3.2vw, 2rem);
+  color: rgba(244, 244, 244, 0.82);
+  text-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.action-option.current {
+  color: #6fe3ff;
+}
+
+.action-option:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.action-option:focus-visible {
+  outline: 1px dashed rgba(255, 255, 255, 0.5);
+}
+
+.action-working {
+  margin-top: 22px;
+  font-size: clamp(1.3rem, 3vw, 1.9rem);
+  color: #6fe3ff;
+  animation: working 1s ease-in-out infinite alternate;
+}
+
+@keyframes working {
+  to {
+    opacity: 0.45;
+  }
+}
+
+.action-hints {
+  position: absolute;
+  inset: auto 0 20px 0;
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+}
+
+/* Portrait screens: the icon sits on top (see GridScene.focusTarget), the text below. */
+@media (max-aspect-ratio: 9/10) {
+  .action-info {
+    left: 16px;
+    right: 16px;
+    top: 50%;
+    transform: none;
+  }
+}
+
+/* Keep notices clear of the menu's options. */
+.menu-open .toast {
+  bottom: auto;
+  top: 16px;
+}
