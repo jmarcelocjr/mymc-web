@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { openCard, type MemoryCard } from '../src/core';
+import { openCard, parseIcon, type MemoryCard } from '../src/core';
 import { REAL_CARD_PATH, loadRealCard, type GoldenCard } from './helpers/fixtures';
 import { describeTree } from './helpers/tree';
 
@@ -49,6 +49,22 @@ describe.skipIf(!REAL_CARD_PATH)('real card', () => {
     const ecc = getCard().checkEcc();
     if (ecc.failed.length > 0) console.log('ECC mismatches outside the filesystem (harmless), pages:', ecc.failed);
     expect(ecc.failedInUse).toEqual([]);
+  });
+
+  it('parses every 3D icon', () => {
+    const card = getCard();
+    for (const save of card.listSaves()) {
+      if (!save.iconSys) continue;
+      for (const name of new Set(Object.values(save.iconSys.icons))) {
+        const icon = parseIcon(card.readFile(`/${save.name}/${name}`));
+        console.log(
+          `${save.name}/${name}: ${icon.vertexCount} vertices, ${icon.shapes.length} shapes, ` +
+            `${icon.animation?.frames.length ?? 0} frames, texture type ${icon.textureType.toString(2)}, ` +
+            `${icon.texture ? 'textured' : 'no texture'}${icon.warning ? `, warning: ${icon.warning}` : ''}`,
+        );
+        expect(icon.vertexCount).toBeGreaterThan(0);
+      }
+    }
   });
 
   it.skipIf(!existsSync(PYTHON))('matches mymc++ (needs .venv from npm run fixtures)', () => {
